@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Educativo de Redes Neuronales - NeuroSim Edu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Barra de Navegación Superior -->
+    <nav class="bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-3 flex justify-between items-center z-20 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center shadow-inner">
+                <i class="fas fa-brain text-blue-400 text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-white leading-none">NeuroSim <span class="text-blue-400 font-light">Edu</span></h1>
+                <span class="text-[10px] text-slate-400 uppercase tracking-widest">Laboratorio Visual Interactivo</span>
+            </div>
+        </div>
+        <div class="flex gap-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
+            <button onclick="setModule(1)" id="btn-mod-1" class="module-btn active px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-circle-nodes text-[11px]"></i> 1. La Neurona
+            </button>
+            <button onclick="setModule(2)" id="btn-mod-2" class="module-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-border-all text-[11px]"></i> 2. Desafío XOR
+            </button>
+            <button onclick="setModule(3)" id="btn-mod-3" class="module-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-wave-square text-[11px]"></i> 3. Backpropagation
+            </button>
+            <button onclick="setModule(4)" id="btn-mod-4" class="module-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-flask text-[11px]"></i> 4. Sandbox
+            </button>
+            <button onclick="setModule(5)" id="btn-mod-5" class="module-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-cube text-[11px]"></i> 5. Gradiente 3D
+            </button>
+            <button onclick="setModule(6)" id="btn-mod-6" class="module-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 border border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fas fa-eye text-[11px]"></i> 6. Visión CNN
+            </button>
+        </div>
+    </nav>
+
+    <!-- Contenedor Principal -->
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Sidebar de Controles -->
+        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto" id="sidebar">
+            <div class="p-4 border-b border-slate-800 bg-slate-900/50">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 id="module-title" class="text-base font-bold text-white">Cargando...</h2>
+                    <span id="module-badge" class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Módulo 1</span>
+                </div>
+                <p id="module-desc" class="text-xs text-slate-400 leading-relaxed"></p>
+            </div>
+            <div id="controls-container" class="p-4 flex-1 flex flex-col gap-4">
+                <!-- Controles dinámicos inyectados por JS -->
+            </div>
+        </aside>
+
+        <!-- Área Principal de Visualización -->
+        <section class="flex-1 p-3 flex flex-col gap-3 relative bg-slate-950 overflow-hidden">
+            <div id="canvas-container" class="flex-1 relative border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+                
+                <canvas id="simCanvas"></canvas>
+
+                <!-- Indicador superior izquierdo de Ayuda / Interacción -->
+                <div id="top-hint-pill" class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 rounded-full px-3 py-1 text-[11px] text-slate-300 flex items-center gap-2 pointer-events-none z-30 shadow-lg">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="top-hint-text">Arrastra el lienzo para moverte · Rueda del ratón para hacer zoom</span>
+                </div>
+
+                <!-- Overlay de Reproductor para Módulo 3 (Backpropagation) -->
+                <div id="player-controls" class="absolute top-3 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-full px-5 py-2 flex items-center gap-3 hidden shadow-2xl z-30">
+                    <button onclick="bpAction('reset')" class="text-slate-300 hover:text-white transition px-2 py-1 rounded hover:bg-slate-800 text-xs flex items-center gap-1" title="Reiniciar Pesos">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button onclick="bpAction('step-back')" class="text-slate-300 hover:text-white transition px-2 py-1 rounded hover:bg-slate-800" title="Fase Anterior">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button onclick="bpAction('play-pause')" id="btn-play" class="bg-blue-600 hover:bg-blue-500 text-white transition rounded-full w-9 h-9 flex items-center justify-center shadow-lg shadow-blue-600/30" title="Reproducir / Pausar">
+                        <i class="fas fa-play text-xs"></i>
+                    </button>
+                    <button onclick="bpAction('step-fwd')" class="text-slate-300 hover:text-white transition px-2 py-1 rounded hover:bg-slate-800" title="Siguiente Fase">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                    <div class="h-4 w-px bg-slate-700 mx-1"></div>
+                    <button onclick="bpFastTrain(15)" class="text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full transition flex items-center gap-1" title="Avanzar 15 épocas rápidamente">
+                        <i class="fas fa-bolt text-[10px]"></i> +15 Épocas
+                    </button>
+                </div>
+
+                <!-- Overlay de Métricas y Curva de Loss para Módulo 4 (Sandbox) -->
+                <div id="metrics-overlay" class="absolute top-12 left-3 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 hidden z-30 shadow-xl w-56 pointer-events-none">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Telemetría en Vivo</span>
+                        <span id="lbl-status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 text-xs font-mono mb-2">
+                        <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+                            <div class="text-[9px] text-slate-500">ÉPOCA</div>
+                            <div id="lbl-epoch" class="text-white font-bold">0</div>
+                        </div>
+                        <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+                            <div class="text-[9px] text-slate-500">PRECISIÓN</div>
+                            <div id="lbl-acc" class="text-emerald-400 font-bold">0%</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800 mb-2 flex justify-between items-center font-mono text-xs">
+                        <span class="text-[10px] text-slate-400">LOSS (MSE):</span>
+                        <span id="lbl-loss" class="text-rose-400 font-bold">0.0000</span>
+                    </div>
+                    <div class="text-[9px] text-slate-500 mb-1 uppercase tracking-wider">Curva de Pérdida (Loss)</div>
+                    <canvas id="lossChartCanvas" width="196" height="48" class="w-full h-12 rounded bg-slate-950 border border-slate-800"></canvas>
+                </div>
+
+                <!-- MENÚ FLOTANTE NO INTRUSIVO DE CÁMARA (ZOOM IN, OUT, PAN, RESET, PANTALLA COMPLETA) -->
+                <div id="camera-hud" class="absolute bottom-3.5 right-3.5 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-full p-1.5 shadow-2xl flex items-center gap-1 z-40 opacity-85 hover:opacity-100 transition-opacity duration-200">
+                    <!-- Indicador/Botón Modo Pan -->
+                    <button onclick="togglePanLock()" id="btn-pan-mode" class="hud-btn active-tool w-8 h-8 rounded-full flex items-center justify-center text-slate-300 border border-transparent text-xs" title="Modo Arrastrar (Pan) activo con el ratón">
+                        <i class="fas fa-hand"></i>
+                    </button>
+                    
+                    <div class="h-4 w-px bg-slate-700/80 mx-0.5"></div>
+                    
+                    <!-- Zoom Out -->
+                    <button onclick="cameraZoomStep(-0.2)" class="hud-btn w-8 h-8 rounded-full flex items-center justify-center text-slate-200 text-xs" title="Alejar (Zoom Out)">
+                        <i class="fas fa-magnifying-glass-minus"></i>
+                    </button>
+                    
+                    <!-- Indicador de Zoom / Reset al hacer clic -->
+                    <button onclick="resetCamera()" id="zoom-pct-label" class="hud-btn px-2.5 h-7 rounded-full font-mono text-xs font-semibold text-blue-300 hover:text-white bg-slate-950/70 border border-slate-800 min-w-[54px] text-center" title="Clic para restablecer zoom al 100%">
+                        100%
+                    </button>
+                    
+                    <!-- Zoom In -->
+                    <button onclick="cameraZoomStep(0.2)" class="hud-btn w-8 h-8 rounded-full flex items-center justify-center text-slate-200 text-xs" title="Acercar (Zoom In)">
+                        <i class="fas fa-magnifying-glass-plus"></i>
+                    </button>
+
+                    <!-- Centrar / Encuadrar -->
+                    <button onclick="resetCamera()" class="hud-btn w-8 h-8 rounded-full flex items-center justify-center text-slate-300 text-xs" title="Centrar y Encuadrar Vista">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+
+                    <div class="h-4 w-px bg-slate-700/80 mx-0.5"></div>
+
+                    <!-- Pantalla Completa -->
+                    <button onclick="toggleFullScreen()" id="btn-fullscreen-hud" class="hud-btn w-8 h-8 rounded-full flex items-center justify-center text-slate-200 text-xs" title="Alternar Pantalla Completa">
+                        <i id="icon-fullscreen-hud" class="fas fa-expand"></i>
+                    </button>
+                </div>
+
+            </div>
+            
+            <!-- Panel Inferior de Explicación Didáctica -->
+            <div id="explanation-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shrink-0 shadow-lg flex flex-col gap-2.5 z-20">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="toggleExplanation()" title="Ocultar / Mostrar Panel Didáctico">
+                        <div class="bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0 flex items-center justify-center w-7 h-7 rounded-lg">
+                            <i class="fas fa-graduation-cap text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white uppercase tracking-wider">Centro Pedagógico Interactivo</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div class="flex bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px]">
+                            <button id="tab-expl-intuition" onclick="setExplanationTab('intuition')" class="px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition">💡 Intuición y Analogía</button>
+                            <button id="tab-expl-math" onclick="setExplanationTab('math')" class="px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition">📐 Rigor Matemático</button>
+                            <button id="tab-expl-lab" onclick="setExplanationTab('lab')" class="px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition">🔬 Reto Práctico</button>
+                        </div>
+                        <button onclick="toggleExplanation()" class="text-slate-400 hover:text-white transition w-7 h-7 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700" title="Minimizar / Expandir">
+                            <i id="expl-toggle-icon" class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="explanation-content" class="text-xs text-slate-300 leading-relaxed transition-all duration-300 origin-top">
+                    Selecciona un módulo para comenzar.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

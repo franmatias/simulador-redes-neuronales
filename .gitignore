@@ -1,0 +1,22 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editores e historial local
+.vscode/
+.idea/
+.history/
+*.swp
+*.swo
+
+# Dependencias y artefactos de compilación
+node_modules/
+dist/
+build/
+
+# Registros y archivos locales
+*.log
+.env
+.env.*
+!.env.example
