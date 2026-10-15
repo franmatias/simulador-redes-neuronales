@@ -19,6 +19,12 @@ Cada módulo incluye un panel pedagógico con tres pestañas: intuición y analo
 
 Selecciona uno de los seis módulos en la barra superior. Los controles correspondientes aparecerán en el panel izquierdo y la visualización interactiva en el lienzo principal. Los cambios en deslizadores, selectores y casillas se reflejan en la visualización al instante. En el panel inferior puedes alternar entre la explicación intuitiva, las fórmulas y una actividad práctica.
 
+## Publicación en GitHub Pages
+
+El flujo de GitHub Actions de `.github/workflows/deploy-pages.yml` publica automáticamente el sitio al hacer push a `main` y también se puede ejecutar manualmente desde la pestaña **Actions**. En el repositorio, selecciona **Settings > Pages > Build and deployment > Source > GitHub Actions**. Cuando termine correctamente el primer despliegue, el simulador estará disponible en:
+
+<https://fmatpra.github.io/simulador-redes-neuronales/>
+
 ### Controles comunes
 
 - **Navegar por el lienzo:** usa la rueda del ratón para acercar o alejar. Los botones de la esquina inferior derecha permiten activar/desactivar el desplazamiento (pan), cambiar el zoom, restablecer la vista y alternar pantalla completa.
@@ -107,13 +113,13 @@ Desde PowerShell, en la carpeta del proyecto:
 py -m http.server 8000
 ```
 
-Después abre [http://localhost:8000/simulador-redes.html](http://localhost:8000/simulador-redes.html). También puedes usar una extensión como Live Server en Visual Studio Code, asegurándote de servir la raíz del proyecto.
+Después abre [http://localhost:8000/](http://localhost:8000/). También puedes usar una extensión como Live Server en Visual Studio Code, asegurándote de servir la raíz del proyecto.
 
 ## Estructura
 
 ```text
 simulador-redes-neuronales/
-├── simulador-redes.html  # Interfaz y lienzos de visualización
+├── index.html            # Interfaz y lienzos de visualización
 ├── css/
 │   └── styles.css        # Estilos propios
 └── js/
