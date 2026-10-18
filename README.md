@@ -23,7 +23,7 @@ Selecciona uno de los seis módulos en la barra superior. Los controles correspo
 
 El flujo de GitHub Actions de `.github/workflows/deploy-pages.yml` publica automáticamente el sitio al hacer push a `main` y también se puede ejecutar manualmente desde la pestaña **Actions**. En el repositorio, selecciona **Settings > Pages > Build and deployment > Source > GitHub Actions**. Cuando termine correctamente el primer despliegue, el simulador estará disponible en:
 
-<https://fmatpra.github.io/simulador-redes-neuronales/>
+<https://franmatias.github.io/simulador-redes-neuronales/>
 
 ### Controles comunes
 
