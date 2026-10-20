@@ -19,6 +19,8 @@ Cada módulo incluye un panel pedagógico con tres pestañas: intuición y analo
 
 Selecciona uno de los seis módulos en la barra superior. Los controles correspondientes aparecerán en el panel izquierdo y la visualización interactiva en el lienzo principal. Los cambios en deslizadores, selectores y casillas se reflejan en la visualización al instante. En el panel inferior puedes alternar entre la explicación intuitiva, las fórmulas y una actividad práctica.
 
+Usa el botón de la barra superior para alternar entre el modo oscuro y el modo claro; la preferencia se conserva en este navegador. En pantallas pequeñas, los controles y la visualización se apilan y la navegación de módulos puede desplazarse horizontalmente.
+
 ## Publicación en GitHub Pages
 
 El flujo de GitHub Actions de `.github/workflows/deploy-pages.yml` publica automáticamente el sitio al hacer push a `main` y también se puede ejecutar manualmente desde la pestaña **Actions**. En el repositorio, selecciona **Settings > Pages > Build and deployment > Source > GitHub Actions**. Cuando termine correctamente el primer despliegue, el simulador estará disponible en:

@@ -103,3 +103,213 @@ canvas.hover-interactive {
   color: #ffffff;
   border-color: #60a5fa;
 }
+
+body,
+nav,
+#sidebar,
+#sidebar > div,
+#explanation-panel,
+#canvas-container,
+#module-navigation,
+#theme-toggle {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+body.light-mode {
+  background-color: #f1f5f7;
+  color: #1e2933;
+}
+
+body.light-mode [class~="bg-slate-900"],
+body.light-mode [class~="bg-slate-900/50"],
+body.light-mode [class~="bg-slate-900/80"],
+body.light-mode [class~="bg-slate-900/85"],
+body.light-mode [class~="bg-slate-900/90"],
+body.light-mode [class~="bg-slate-900/95"] {
+  background-color: #ffffff !important;
+}
+
+body.light-mode [class~="bg-slate-950"],
+body.light-mode [class~="bg-slate-950/40"],
+body.light-mode [class~="bg-slate-950/50"],
+body.light-mode [class~="bg-slate-950/60"],
+body.light-mode [class~="bg-slate-950/70"],
+body.light-mode [class~="bg-slate-950/80"] {
+  background-color: #e9eff3 !important;
+}
+
+body.light-mode [class~="bg-slate-800"],
+body.light-mode [class~="bg-slate-700"] {
+  background-color: #e1e9ee !important;
+}
+
+body.light-mode [class~="border-slate-800"],
+body.light-mode [class~="border-slate-800/80"] {
+  border-color: #d3dee5 !important;
+}
+
+body.light-mode [class~="border-slate-700"],
+body.light-mode [class~="border-slate-700/70"],
+body.light-mode [class~="border-slate-700/80"] {
+  border-color: #c4d1d9 !important;
+}
+
+body.light-mode [class~="text-white"]:not([class~="bg-blue-600"]):not([class~="bg-emerald-600"]):not([class~="bg-rose-600"]):not([class~="bg-amber-600"]) {
+  color: #17232e !important;
+}
+
+body.light-mode [class~="text-slate-200"],
+body.light-mode [class~="text-slate-300"],
+body.light-mode [class~="text-slate-400"] {
+  color: #465866 !important;
+}
+
+body.light-mode [class~="text-slate-500"] {
+  color: #647785 !important;
+}
+
+body.light-mode [class~="text-blue-300"],
+body.light-mode [class~="text-blue-400"] {
+  color: #1d5ca8 !important;
+}
+
+body.light-mode [class~="text-emerald-300"],
+body.light-mode [class~="text-emerald-400"] {
+  color: #147448 !important;
+}
+
+body.light-mode [class~="text-rose-400"] {
+  color: #b83248 !important;
+}
+
+body.light-mode [class~="text-amber-300"],
+body.light-mode [class~="text-amber-400"] {
+  color: #946300 !important;
+}
+
+body.light-mode [class~="text-purple-300"],
+body.light-mode [class~="text-purple-400"] {
+  color: #7551a3 !important;
+}
+
+body.light-mode [class~="text-sky-400"] {
+  color: #087a9b !important;
+}
+
+body.light-mode #theme-toggle {
+  color: #334c5b !important;
+}
+
+@media (max-width: 900px) {
+  body.h-screen {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
+  #top-navigation {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  #module-navigation {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: thin;
+  }
+
+  main.flex-1 {
+    min-height: 0;
+    overflow: visible;
+    flex-direction: column;
+  }
+
+  #sidebar {
+    width: 100%;
+    max-height: 38vh;
+    max-height: 38dvh;
+    border-right: 0;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  main > section {
+    min-height: 70vh;
+    min-height: 70dvh;
+    overflow: visible;
+  }
+
+  #canvas-container {
+    flex: 1 0 420px;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 560px) {
+  #top-navigation > div:first-child {
+    min-width: 0;
+  }
+
+  #theme-toggle {
+    padding: 0.55rem 0.65rem;
+  }
+
+  #theme-toggle-label {
+    display: none;
+  }
+
+  #module-navigation {
+    gap: 0.25rem;
+    padding: 0.35rem;
+  }
+
+  #module-navigation .module-btn {
+    padding: 0.5rem 0.65rem;
+  }
+
+  main > section {
+    min-height: 0;
+    padding: 0.5rem;
+  }
+
+  #canvas-container {
+    flex-basis: 55vh;
+    min-height: 360px;
+  }
+
+  #top-hint-pill {
+    max-width: calc(100% - 1.5rem);
+    font-size: 9px;
+  }
+
+  #camera-hud {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    gap: 0;
+    padding: 0.25rem;
+  }
+
+  #camera-hud .hud-btn {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  #explanation-panel > div:first-child {
+    align-items: flex-start;
+  }
+
+  #explanation-panel > div:first-child > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  #explanation-panel [id^="tab-expl-"] {
+    padding: 0.35rem 0.45rem;
+    font-size: 9px;
+  }
+}

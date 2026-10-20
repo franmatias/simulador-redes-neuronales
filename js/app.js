@@ -108,6 +108,27 @@ function togglePanLock() {
   }
 }
 
+function applyTheme(theme, persist = true) {
+  const isLight = theme === "light";
+  const toggle = document.getElementById("theme-toggle");
+  const icon = document.getElementById("theme-toggle-icon");
+  const label = document.getElementById("theme-toggle-label");
+
+  document.body.classList.toggle("light-mode", isLight);
+  if (toggle) {
+    const nextThemeLabel = isLight ? "modo oscuro" : "modo claro";
+    toggle.setAttribute("aria-label", `Cambiar a ${nextThemeLabel}`);
+    toggle.setAttribute("title", `Cambiar a ${nextThemeLabel}`);
+  }
+  if (icon) icon.className = `fas ${isLight ? "fa-moon" : "fa-sun"}`;
+  if (label) label.textContent = isLight ? "Modo oscuro" : "Modo claro";
+  if (persist) localStorage.setItem("neurosim-theme", isLight ? "light" : "dark");
+}
+
+function toggleTheme() {
+  applyTheme(document.body.classList.contains("light-mode") ? "dark" : "light");
+}
+
 // ==========================================
 // ESTADO GLOBAL DEL SIMULADOR
 // ==========================================
@@ -3655,6 +3676,7 @@ function drawModule6() {
 // BUCLE PRINCIPAL DE ANIMACIÓN Y ENTRENAMIENTO
 // ==========================================
 window.onload = () => {
+  applyTheme(localStorage.getItem("neurosim-theme") || "dark", false);
   resize();
   setModule(1);
 
