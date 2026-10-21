@@ -143,4 +143,10 @@ simulador-redes-neuronales/
 
 ## Desarrollo y pruebas
 
-No hay un gestor de paquetes, paso de compilación ni conjunto de pruebas automatizadas configurados. Para comprobar cambios, sirve la carpeta localmente y prueba los módulos y sus controles en el navegador.
+Las pruebas automatizadas usan el ejecutor integrado de Node.js, sin dependencias externas. Requieren Node.js 20 o posterior. Desde la raíz del proyecto, ejecútalas con:
+
+```powershell
+npm test
+```
+
+La batería verifica cálculos, límites, dimensiones de datos y descenso de la pérdida en los siete módulos. Para probar además la interfaz y sus controles en el navegador, sirve la carpeta localmente y recorre los módulos.

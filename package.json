@@ -1,0 +1,7 @@
+{
+  "name": "simulador-redes-neuronales",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
