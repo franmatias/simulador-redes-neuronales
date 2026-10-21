@@ -220,6 +220,24 @@ const state = {
     convGrid: [], // 8x8
     poolGrid: [], // 4x4
   },
+  // Módulo 7 (Clasificador multiclase)
+  m7: {
+    classCount: 3,
+    x1: 0.35,
+    x2: 0.15,
+    datasetType: "blobs",
+    noise: 0.12,
+    hiddenLayers: 2,
+    neuronsPerLayer: 8,
+    optimizer: "minibatch",
+    manualClass: 0,
+    interactionMode: "probe",
+    weights: [],
+    networkBiases: [],
+    dataset: [],
+    trained: false,
+    loss: null,
+  },
 };
 
 // ==========================================
@@ -453,6 +471,44 @@ const moduleExplanations = {
                         </div>
                         <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
                             <span class="text-emerald-400 font-bold">Experimento 3 (Inspección Celda a Celda):</span> Pausa el escaneo automático y haz clic en cualquier celda del <em>Mapa de Características (8×8)</em> para ver exactamente qué región <span class="font-mono">3×3</span> la generó.
+                        </div>
+                    </div>`,
+  },
+  7: {
+    intuition: `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-blue-400 font-bold">🎯 Una salida por clase:</span> Cada neurona de salida representa una categoría. Las capas ocultas aprenden combinaciones de características para separar patrones complejos.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-emerald-400 font-bold">📊 Probabilidades que compiten:</span> Softmax convierte las puntuaciones en probabilidades que suman 100 %. La clase predicha es la que obtiene la probabilidad más alta.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-amber-400 font-bold">🗺️ Frontera de decisión:</span> Elige entre blobs, círculos o espirales, añade ruido y coloca ejemplos etiquetados a mano para explorar cómo aprende el modelo.
+                        </div>
+                    </div>`,
+    math: `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-blue-400 font-bold">1. Puntuación (logit):</span> Para cada clase <span class="font-mono">k</span>, la red calcula <span class="font-mono text-white">zₖ = wₖ₁x₁ + wₖ₂x₂ + bₖ</span>.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-purple-400 font-bold">2. Softmax:</span> <span class="font-mono text-white">P(k|x) = exp(zₖ) / Σⱼ exp(zⱼ)</span>. Normaliza los logits: cada probabilidad está entre 0 y 1 y todas suman 1.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-emerald-400 font-bold">3. Aprendizaje:</span> La retropropagación calcula el gradiente de la entropía cruzada a través de cada capa. Batch, SGD y mini-batch se diferencian en cuántos ejemplos usan por actualización.
+                        </div>
+                    </div>`,
+    lab: `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-amber-400 font-bold">Reto 1 (Más categorías):</span> Cambia de dos a cinco clases y observa cómo aparece una neurona de salida por categoría.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-blue-400 font-bold">Reto 2 (No linealidad):</span> Prueba círculos o espirales. Compara una capa oculta con varias y observa cómo cambia la frontera.
+                        </div>
+                        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                            <span class="text-emerald-400 font-bold">Reto 3 (Algoritmos):</span> Entrena el mismo dataset con Batch GD, SGD y Mini-batch y compara el resultado. Después coloca algunos puntos manualmente.
                         </div>
                     </div>`,
   },
@@ -863,6 +919,9 @@ canvas.addEventListener("mousedown", (e) => {
     if (handleCNNPointerInteraction(wPt.x, wPt.y, true)) {
       return;
     }
+  }
+  if (state.module === 7 && setClassifierPointFromCanvas(wPt.x, wPt.y)) {
+    return;
   }
 
   // En Módulo 1: Comprobar si el usuario hace clic sobre el punto (x1, x2) para arrastrarlo directamente
@@ -1467,6 +1526,423 @@ function bpFastTrain(steps = 15) {
 }
 
 // ==========================================
+// CLASIFICADOR MULTICLASE (MÓDULO 7)
+// ==========================================
+const classifierColors = ["#38bdf8", "#fb7185", "#34d399", "#fbbf24", "#c084fc"];
+const classifierLetters = ["A", "B", "C", "D", "E"];
+
+function classifierForward(input) {
+  const m = state.m7;
+  const activations = [input];
+  const preActivations = [];
+
+  for (let layerIndex = 0; layerIndex < m.weights.length; layerIndex++) {
+    const previous = activations[layerIndex];
+    const z = m.weights[layerIndex].map((weights, neuronIndex) =>
+      weights.reduce(
+        (sum, weight, inputIndex) => sum + weight * previous[inputIndex],
+        m.networkBiases[layerIndex][neuronIndex],
+      ),
+    );
+    preActivations.push(z);
+    if (layerIndex === m.weights.length - 1) {
+      const maxLogit = Math.max(...z);
+      const expLogits = z.map((value) => Math.exp(value - maxLogit));
+      const sum = expLogits.reduce((total, value) => total + value, 0);
+      activations.push(expLogits.map((value) => value / sum));
+    } else {
+      activations.push(z.map((value) => Math.max(0, value)));
+    }
+  }
+
+  return { activations, preActivations, probabilities: activations.at(-1) };
+}
+
+function classifierGaussianNoise() {
+  const first = Math.max(Number.EPSILON, Math.random());
+  const second = Math.random();
+  return Math.sqrt(-2 * Math.log(first)) * Math.cos(2 * Math.PI * second);
+}
+
+function generateClassifierDataset() {
+  const m = state.m7;
+  m.dataset = [];
+  if (m.datasetType === "manual") return;
+
+  const samplesPerClass = 36;
+  for (let classIndex = 0; classIndex < m.classCount; classIndex++) {
+    const classAngle = (2 * Math.PI * classIndex) / m.classCount;
+    for (let sampleIndex = 0; sampleIndex < samplesPerClass; sampleIndex++) {
+      let x1;
+      let x2;
+      const noise = m.noise;
+
+      if (m.datasetType === "circles") {
+        const angle = Math.random() * Math.PI * 2;
+        const radius =
+          0.16 + (0.68 * classIndex) / Math.max(1, m.classCount - 1);
+        x1 = Math.cos(angle) * radius + classifierGaussianNoise() * noise * 0.45;
+        x2 = Math.sin(angle) * radius + classifierGaussianNoise() * noise * 0.45;
+      } else if (m.datasetType === "spirals") {
+        const progress = 0.08 + Math.random() * 0.84;
+        const angle = progress * Math.PI * 4 + classAngle;
+        x1 = progress * Math.cos(angle) + classifierGaussianNoise() * noise;
+        x2 = progress * Math.sin(angle) + classifierGaussianNoise() * noise;
+      } else {
+        const centerX = 0.62 * Math.cos(classAngle);
+        const centerY = 0.62 * Math.sin(classAngle);
+        x1 = centerX + classifierGaussianNoise() * (0.11 + noise);
+        x2 = centerY + classifierGaussianNoise() * (0.11 + noise);
+      }
+
+      m.dataset.push({
+        x: [Math.max(-1, Math.min(1, x1)), Math.max(-1, Math.min(1, x2))],
+        label: classIndex,
+      });
+    }
+  }
+}
+
+function initializeClassifier(resetDataset = false) {
+  const m = state.m7;
+  const layerSizes = [
+    2,
+    ...Array(m.hiddenLayers).fill(m.neuronsPerLayer),
+    m.classCount,
+  ];
+  m.weights = [];
+  m.networkBiases = [];
+
+  for (let layerIndex = 0; layerIndex < layerSizes.length - 1; layerIndex++) {
+    const fanIn = layerSizes[layerIndex];
+    const fanOut = layerSizes[layerIndex + 1];
+    const limit = Math.sqrt(6 / (fanIn + fanOut));
+    m.weights.push(
+      Array.from({ length: fanOut }, () =>
+        Array.from({ length: fanIn }, () => (Math.random() * 2 - 1) * limit),
+      ),
+    );
+    m.networkBiases.push(Array.from({ length: fanOut }, () => 0));
+  }
+
+  if (resetDataset || !m.dataset.length) generateClassifierDataset();
+  m.trained = false;
+  m.loss = null;
+}
+
+function getClassifierProbabilities() {
+  return classifierForward([state.m7.x1, state.m7.x2]).probabilities;
+}
+
+function classifierLoss() {
+  const m = state.m7;
+  if (!m.dataset.length) return null;
+  const totalLoss = m.dataset.reduce((total, sample) => {
+    const probability = classifierForward(sample.x).probabilities[sample.label];
+    return total - Math.log(Math.max(probability, 1e-12));
+  }, 0);
+  return totalLoss / m.dataset.length;
+}
+
+function getClassifierOptimizerLabel() {
+  return {
+    batch: "Batch GD",
+    sgd: "SGD",
+    minibatch: "Mini-batch",
+  }[state.m7.optimizer];
+}
+
+function renderClassifierResults() {
+  const resultsEl = document.getElementById("classifier-results");
+  if (!resultsEl) return;
+
+  const probabilities = getClassifierProbabilities();
+  const prediction = probabilities.indexOf(Math.max(...probabilities));
+  const confidence = Math.round(probabilities[prediction] * 100);
+  const displayedPercentages = probabilities.map(
+    (probability) => Math.round(probability * 1000) / 10,
+  );
+  const displayedTotal = displayedPercentages.reduce(
+    (total, percentage) => total + Math.round(percentage * 10),
+    0,
+  );
+  displayedPercentages[displayedPercentages.length - 1] +=
+    (1000 - displayedTotal) / 10;
+  const predictionEl = document.getElementById("classifier-prediction");
+  const statusEl = document.getElementById("classifier-training-status");
+
+  predictionEl.innerHTML = `<span style="color:${classifierColors[prediction]}">Clase ${classifierLetters[prediction]}</span> · ${confidence}%`;
+  resultsEl.innerHTML = probabilities
+    .map(
+      (_probability, index) => `
+        <div class="flex items-center gap-2">
+            <span class="w-14 shrink-0 text-[11px] text-slate-300">Clase ${classifierLetters[index]}</span>
+            <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full rounded-full transition-all duration-200" style="width:${displayedPercentages[index].toFixed(1)}%;background:${classifierColors[index]}"></div>
+            </div>
+            <span class="w-10 text-right font-mono text-[10px] text-slate-300">${displayedPercentages[index].toFixed(1)}%</span>
+        </div>`,
+    )
+    .join("");
+
+  const loss = state.m7.trained ? classifierLoss() : null;
+  state.m7.loss = loss;
+  if (statusEl) {
+    statusEl.textContent = state.m7.trained
+      ? `${getClassifierOptimizerLabel()} · pérdida ${loss.toFixed(3)} · ${state.m7.dataset.length} ejemplos`
+      : state.m7.dataset.length
+        ? `${state.m7.dataset.length} ejemplos · listo para entrenar`
+        : "Dataset vacío · añade puntos en modo manual";
+  }
+}
+
+function setClassifierInput(axis, value) {
+  const numericValue = Math.round(
+    Math.max(-1, Math.min(1, Number(value))) * 100,
+  ) / 100;
+  if (axis === "x1") state.m7.x1 = numericValue;
+  else state.m7.x2 = numericValue;
+
+  const valueEl = document.getElementById(`classifier-${axis}-value`);
+  if (valueEl) valueEl.textContent = numericValue.toFixed(2);
+  renderClassifierResults();
+}
+
+function setClassifierClassCount(value) {
+  state.m7.classCount = Math.max(2, Math.min(5, Number(value)));
+  state.m7.manualClass = Math.min(
+    state.m7.manualClass,
+    state.m7.classCount - 1,
+  );
+  generateClassifierDataset();
+  initializeClassifier();
+  setModule(7);
+}
+
+function resetClassifier() {
+  initializeClassifier();
+  renderClassifierResults();
+}
+
+function setClassifierDataset(datasetType) {
+  state.m7.datasetType = datasetType;
+  state.m7.interactionMode = datasetType === "manual" ? "add" : "probe";
+  generateClassifierDataset();
+  initializeClassifier();
+  state.m7.trained = false;
+  state.m7.loss = null;
+  setModule(7);
+}
+
+function setClassifierNoise(value) {
+  state.m7.noise = Number(value);
+  const valueEl = document.getElementById("classifier-noise-value");
+  if (valueEl) valueEl.textContent = state.m7.noise.toFixed(2);
+  if (state.m7.datasetType !== "manual") {
+    generateClassifierDataset();
+    initializeClassifier();
+  }
+  state.m7.trained = false;
+  state.m7.loss = null;
+  renderClassifierResults();
+}
+
+function setClassifierArchitecture(hiddenLayers, neuronsPerLayer) {
+  state.m7.hiddenLayers = Number(hiddenLayers);
+  state.m7.neuronsPerLayer = Number(neuronsPerLayer);
+  initializeClassifier();
+  renderClassifierResults();
+}
+
+function setClassifierManualClass(value) {
+  state.m7.manualClass = Math.max(
+    0,
+    Math.min(state.m7.classCount - 1, Number(value)),
+  );
+  if (state.m7.interactionMode === "add") setClassifierInteractionMode("add");
+}
+
+function clearClassifierDataset() {
+  state.m7.dataset = [];
+  state.m7.trained = false;
+  state.m7.loss = null;
+  renderClassifierResults();
+}
+
+function setClassifierInteractionMode(mode) {
+  state.m7.interactionMode = mode;
+  const probeButton = document.getElementById("classifier-mode-probe");
+  const addButton = document.getElementById("classifier-mode-add");
+  if (probeButton) {
+    probeButton.className =
+      mode === "probe"
+        ? "flex-1 rounded-lg border border-blue-500/50 bg-blue-600/20 px-2 py-1.5 text-[10px] font-semibold text-blue-200"
+        : "flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-slate-300";
+  }
+  if (addButton) {
+    addButton.className =
+      mode === "add"
+        ? "flex-1 rounded-lg border border-amber-500/50 bg-amber-600/20 px-2 py-1.5 text-[10px] font-semibold text-amber-200"
+        : "flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-slate-300";
+  }
+  const hint = document.getElementById("classifier-map-hint");
+  if (hint) {
+    hint.textContent =
+      mode === "add"
+        ? `Modo añadir: pulsa el mapa para colocar un punto de clase ${classifierLetters[state.m7.manualClass]}.`
+        : "Pulsa el mapa para probar una entrada; cambia a modo añadir para etiquetar ejemplos.";
+  }
+  const topHint = document.getElementById("top-hint-text");
+  if (topHint) {
+    topHint.textContent =
+      mode === "add"
+        ? "Modo añadir: pulsa en el mapa para colocar un ejemplo etiquetado"
+        : "Modo probar: pulsa en el mapa para cambiar x₁ y x₂";
+  }
+}
+
+function trainClassifier() {
+  const m = state.m7;
+  if (!m.dataset.length) {
+    renderClassifierResults();
+    return;
+  }
+
+  const learningRate = {
+    batch: 0.45,
+    sgd: 0.02,
+    minibatch: 0.1,
+  }[m.optimizer];
+  const batchSize =
+    m.optimizer === "batch" ? m.dataset.length : m.optimizer === "sgd" ? 1 : 16;
+  const epochs = 80;
+
+  const updateBatch = (batch) => {
+    const weightGradients = m.weights.map((layer) =>
+      layer.map((neuron) => neuron.map(() => 0)),
+    );
+    const biasGradients = m.networkBiases.map((layer) =>
+      layer.map(() => 0),
+    );
+
+    for (const sample of batch) {
+      const { activations, preActivations, probabilities } =
+        classifierForward(sample.x);
+      let deltas = probabilities.map(
+        (probability, classIndex) =>
+          probability - (classIndex === sample.label ? 1 : 0),
+      );
+
+      for (let layerIndex = m.weights.length - 1; layerIndex >= 0; layerIndex--) {
+        const previousActivations = activations[layerIndex];
+        for (let neuronIndex = 0; neuronIndex < deltas.length; neuronIndex++) {
+          biasGradients[layerIndex][neuronIndex] += deltas[neuronIndex];
+          for (
+            let inputIndex = 0;
+            inputIndex < previousActivations.length;
+            inputIndex++
+          ) {
+            weightGradients[layerIndex][neuronIndex][inputIndex] +=
+              deltas[neuronIndex] * previousActivations[inputIndex];
+          }
+        }
+
+        if (layerIndex > 0) {
+          const previousDeltas = m.weights[layerIndex][0].map((_, inputIndex) => {
+            const propagated = deltas.reduce(
+              (sum, delta, neuronIndex) =>
+                sum + delta * m.weights[layerIndex][neuronIndex][inputIndex],
+              0,
+            );
+            return preActivations[layerIndex - 1][inputIndex] > 0
+              ? propagated
+              : 0;
+          });
+          deltas = previousDeltas;
+        }
+      }
+    }
+
+    const scale = learningRate / batch.length;
+    for (let layerIndex = 0; layerIndex < m.weights.length; layerIndex++) {
+      for (
+        let neuronIndex = 0;
+        neuronIndex < m.weights[layerIndex].length;
+        neuronIndex++
+      ) {
+        m.networkBiases[layerIndex][neuronIndex] -=
+          biasGradients[layerIndex][neuronIndex] * scale;
+        for (
+          let inputIndex = 0;
+          inputIndex < m.weights[layerIndex][neuronIndex].length;
+          inputIndex++
+        ) {
+          m.weights[layerIndex][neuronIndex][inputIndex] -=
+            weightGradients[layerIndex][neuronIndex][inputIndex] * scale;
+        }
+      }
+    }
+  };
+
+  for (let epoch = 0; epoch < epochs; epoch++) {
+    const shuffled = [...m.dataset];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [
+        shuffled[swapIndex],
+        shuffled[index],
+      ];
+    }
+    for (let start = 0; start < shuffled.length; start += batchSize) {
+      updateBatch(shuffled.slice(start, start + batchSize));
+    }
+  }
+
+  m.loss = classifierLoss();
+  m.trained = true;
+  renderClassifierResults();
+}
+
+function getClassifierPlotGeometry() {
+  const size = Math.min(width * 0.56, height * 0.72, 560);
+  return {
+    x: width * 0.36 - size / 2,
+    y: height / 2 - size / 2,
+    size,
+  };
+}
+
+function setClassifierPointFromCanvas(x, y) {
+  const plot = getClassifierPlotGeometry();
+  if (x < plot.x || x > plot.x + plot.size || y < plot.y || y > plot.y + plot.size) {
+    return false;
+  }
+
+  const x1 = Math.round((((x - plot.x) / plot.size) * 2 - 1) * 100) / 100;
+  const x2 = Math.round((1 - ((y - plot.y) / plot.size) * 2) * 100) / 100;
+  if (state.m7.interactionMode === "add") {
+    state.m7.dataset.push({
+      x: [x1, x2],
+      label: state.m7.manualClass,
+      manual: true,
+    });
+    state.m7.trained = false;
+    state.m7.loss = null;
+    renderClassifierResults();
+  } else {
+    setClassifierInput("x1", x1);
+    setClassifierInput("x2", x2);
+  }
+  const x1Slider = document.getElementById("classifier-x1");
+  const x2Slider = document.getElementById("classifier-x2");
+  if (state.m7.interactionMode !== "add") {
+    if (x1Slider) x1Slider.value = state.m7.x1;
+    if (x2Slider) x2Slider.value = state.m7.x2;
+  }
+  return true;
+}
+
+// ==========================================
 // CONFIGURACIÓN DE MÓDULOS Y SIDEBAR
 // ==========================================
 function setModule(modIndex) {
@@ -1958,6 +2434,140 @@ function setModule(modIndex) {
                     </div>
                 `;
     renderModuleExplanation();
+  } else if (modIndex === 7) {
+    titleEl.innerText = "Clasificador multiclase";
+    descEl.innerText =
+      "Experimenta con una red que asigna una probabilidad a cada clase y elige la categoría más probable.";
+    hintText.innerText =
+      state.m7.interactionMode === "add"
+        ? "Modo añadir: pulsa en el mapa para colocar un ejemplo etiquetado"
+        : "Modo probar: pulsa en el mapa para cambiar x₁ y x₂";
+
+    if (
+      state.m7.weights.length !== state.m7.hiddenLayers + 1 ||
+      state.m7.weights.at(-1)?.length !== state.m7.classCount
+    ) {
+      initializeClassifier();
+    }
+
+    controlsEl.innerHTML = `
+        <div class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <label for="classifier-class-count" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Neuronas de salida / clases</label>
+            <select id="classifier-class-count" onchange="setClassifierClassCount(this.value)" class="rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-white outline-none focus:border-blue-500">
+                ${[2, 3, 4, 5]
+                  .map(
+                    (count) =>
+                      `<option value="${count}" ${state.m7.classCount === count ? "selected" : ""}>${count} clases</option>`,
+                  )
+                  .join("")}
+            </select>
+            <p class="text-[10px] leading-relaxed text-slate-400">Una neurona de salida aprende a reconocer cada categoría.</p>
+            <div class="flex flex-wrap gap-x-3 gap-y-1">
+                ${Array.from({ length: state.m7.classCount }, (_, index) => `<span class="flex items-center gap-1 text-[10px] text-slate-300"><span class="h-2 w-2 rounded-full" style="background:${classifierColors[index]}"></span>${classifierLetters[index]}</span>`).join("")}
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <label for="classifier-dataset" class="text-[10px] font-bold uppercase tracking-wider text-amber-300">Dataset y edición de ejemplos</label>
+            <select id="classifier-dataset" onchange="setClassifierDataset(this.value)" class="rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-white outline-none focus:border-amber-500">
+                <option value="blobs" ${state.m7.datasetType === "blobs" ? "selected" : ""}>Nubes (blobs)</option>
+                <option value="circles" ${state.m7.datasetType === "circles" ? "selected" : ""}>Círculos concéntricos</option>
+                <option value="spirals" ${state.m7.datasetType === "spirals" ? "selected" : ""}>Espirales</option>
+                <option value="manual" ${state.m7.datasetType === "manual" ? "selected" : ""}>Datos manuales</option>
+            </select>
+            <div class="${state.m7.datasetType === "manual" ? "hidden" : "flex"} flex-col gap-1.5" id="classifier-noise-control">
+                <div class="flex justify-between text-[11px] text-slate-300">
+                    <label for="classifier-noise">Ruido / dispersión</label>
+                    <span id="classifier-noise-value" class="font-mono text-amber-300">${state.m7.noise.toFixed(2)}</span>
+                </div>
+                <input id="classifier-noise" type="range" min="0" max="0.4" step="0.01" value="${state.m7.noise}" oninput="setClassifierNoise(this.value)" class="slider-custom">
+            </div>
+            <div class="${state.m7.datasetType === "manual" ? "flex" : "hidden"} flex-col gap-2" id="classifier-manual-controls">
+                <label for="classifier-manual-class" class="text-[11px] text-slate-300">Etiqueta para los nuevos puntos</label>
+                <select id="classifier-manual-class" onchange="setClassifierManualClass(this.value)" class="rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-white outline-none">
+                    ${Array.from({ length: state.m7.classCount }, (_, index) => `<option value="${index}" ${state.m7.manualClass === index ? "selected" : ""}>Clase ${classifierLetters[index]}</option>`).join("")}
+                </select>
+                <p id="classifier-map-hint" class="text-[10px] leading-relaxed text-slate-400">${state.m7.interactionMode === "add" ? `Modo añadir: pulsa el mapa para colocar un punto de clase ${classifierLetters[state.m7.manualClass]}.` : "Pulsa el mapa para probar una entrada; cambia a modo añadir para etiquetar ejemplos."}</p>
+            </div>
+            <div class="flex gap-1.5">
+                <button id="classifier-mode-probe" onclick="setClassifierInteractionMode('probe')" class="flex-1 rounded-lg border ${state.m7.interactionMode === "probe" ? "border-blue-500/50 bg-blue-600/20 text-blue-200" : "border-slate-700 bg-slate-800 text-slate-300"} px-2 py-1.5 text-[10px] font-semibold">Probar entrada</button>
+                <button id="classifier-mode-add" onclick="setClassifierInteractionMode('add')" class="flex-1 rounded-lg border ${state.m7.interactionMode === "add" ? "border-amber-500/50 bg-amber-600/20 text-amber-200" : "border-slate-700 bg-slate-800 text-slate-300"} px-2 py-1.5 text-[10px] font-semibold">Añadir punto</button>
+            </div>
+            <button onclick="clearClassifierDataset()" class="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700">
+                <i class="fas fa-eraser mr-1"></i> Borrar ejemplos
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-purple-300">Arquitectura de la red</h3>
+            <div class="flex items-center justify-between gap-2">
+                <label for="classifier-hidden-layers" class="text-[11px] text-slate-300">Capas ocultas</label>
+                <select id="classifier-hidden-layers" onchange="setClassifierArchitecture(this.value, document.getElementById('classifier-neurons').value)" class="rounded-lg border border-slate-700 bg-slate-950 p-1.5 text-xs text-white">
+                    ${[1, 2, 3].map((count) => `<option value="${count}" ${state.m7.hiddenLayers === count ? "selected" : ""}>${count}</option>`).join("")}
+                </select>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+                <label for="classifier-neurons" class="text-[11px] text-slate-300">Neuronas por capa</label>
+                <select id="classifier-neurons" onchange="setClassifierArchitecture(document.getElementById('classifier-hidden-layers').value, this.value)" class="rounded-lg border border-slate-700 bg-slate-950 p-1.5 text-xs text-white">
+                    ${[4, 8, 12].map((count) => `<option value="${count}" ${state.m7.neuronsPerLayer === count ? "selected" : ""}>${count}</option>`).join("")}
+                </select>
+            </div>
+            <p class="text-[10px] leading-relaxed text-slate-400">ReLU en capas ocultas · Softmax en la salida</p>
+        </div>
+
+        <div class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <label for="classifier-optimizer" class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Algoritmo de entrenamiento</label>
+            <select id="classifier-optimizer" onchange="state.m7.optimizer = this.value; renderClassifierResults();" class="rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-white outline-none focus:border-emerald-500">
+                <option value="batch" ${state.m7.optimizer === "batch" ? "selected" : ""}>Batch GD · dataset completo</option>
+                <option value="sgd" ${state.m7.optimizer === "sgd" ? "selected" : ""}>SGD · un ejemplo por actualización</option>
+                <option value="minibatch" ${state.m7.optimizer === "minibatch" ? "selected" : ""}>Mini-batch · grupos de 16</option>
+            </select>
+            <p class="text-[10px] leading-relaxed text-slate-400">El algoritmo cambia el tamaño del lote usado en cada actualización.</p>
+        </div>
+
+        <div class="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-blue-300">Prueba una entrada (x₁, x₂)</h3>
+            ${[
+              ["x1", "x₁ · característica 1"],
+              ["x2", "x₂ · característica 2"],
+            ]
+              .map(
+                ([axis, label]) => `
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-[11px] text-slate-300">
+                            <label for="classifier-${axis}">${label}</label>
+                            <span id="classifier-${axis}-value" class="font-mono text-blue-300">${state.m7[axis].toFixed(2)}</span>
+                        </div>
+                        <input id="classifier-${axis}" type="range" min="-1" max="1" step="0.01" value="${state.m7[axis]}" oninput="setClassifierInput('${axis}', this.value)" class="slider-custom">
+                    </div>`,
+              )
+              .join("")}
+        </div>
+
+        <div class="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Predicción · Softmax</h3>
+                <span class="text-[9px] text-slate-500">Σ probabilidades = 100 %</span>
+            </div>
+            <p id="classifier-prediction" class="text-sm font-bold text-white"></p>
+            <div id="classifier-results" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p id="classifier-training-status" class="text-[10px] leading-relaxed text-slate-400"></p>
+            <button onclick="trainClassifier()" class="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500">
+                <i class="fas fa-play"></i> Entrenar clasificador
+            </button>
+            <button onclick="resetClassifier()" class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700">
+                <i class="fas fa-undo mr-1"></i> Reiniciar pesos
+            </button>
+        </div>
+        <p class="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5 text-[10px] leading-relaxed text-slate-400">
+            <i class="fas fa-hand-pointer mr-1 text-blue-300"></i> En el mapa, usa <b>Probar entrada</b> para mover el marcador o <b>Añadir punto</b> para crear un ejemplo con la clase elegida.
+        </p>
+    `;
+    renderClassifierResults();
+    renderModuleExplanation();
   }
 }
 
@@ -2277,6 +2887,230 @@ function drawPillLabel(
   ctx.restore();
 }
 
+function drawModule7() {
+  const m = state.m7;
+  const plot = getClassifierPlotGeometry();
+  const cellSize = plot.size / 30;
+
+  ctx.save();
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(plot.x, plot.y, plot.size, plot.size);
+  ctx.globalAlpha = 0.2;
+  for (let row = 0; row < 30; row++) {
+    for (let col = 0; col < 30; col++) {
+      const x1 = ((col + 0.5) / 30) * 2 - 1;
+      const x2 = 1 - ((row + 0.5) / 30) * 2;
+      const probabilities = classifierForward([x1, x2]).probabilities;
+      const classIndex = probabilities.indexOf(Math.max(...probabilities));
+      ctx.fillStyle = classifierColors[classIndex];
+      ctx.fillRect(
+        plot.x + col * cellSize,
+        plot.y + row * cellSize,
+        cellSize + 0.5,
+        cellSize + 0.5,
+      );
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.28)";
+  ctx.lineWidth = 1;
+  for (let tick = 0; tick <= 4; tick++) {
+    const offset = (plot.size * tick) / 4;
+    ctx.beginPath();
+    ctx.moveTo(plot.x + offset, plot.y);
+    ctx.lineTo(plot.x + offset, plot.y + plot.size);
+    ctx.moveTo(plot.x, plot.y + offset);
+    ctx.lineTo(plot.x + plot.size, plot.y + offset);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(plot.x, plot.y, plot.size, plot.size);
+
+  for (const sample of m.dataset) {
+    const x = plot.x + ((sample.x[0] + 1) / 2) * plot.size;
+    const y = plot.y + ((1 - sample.x[1]) / 2) * plot.size;
+    ctx.fillStyle = classifierColors[sample.label];
+    if (sample.manual) {
+      const markerSize = Math.max(5, plot.size * 0.014);
+      ctx.fillRect(x - markerSize / 2, y - markerSize / 2, markerSize, markerSize);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(2, plot.size * 0.007), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.7)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  const pointX = plot.x + ((m.x1 + 1) / 2) * plot.size;
+  const pointY = plot.y + ((1 - m.x2) / 2) * plot.size;
+  const probabilities = getClassifierProbabilities();
+  const prediction = probabilities.indexOf(Math.max(...probabilities));
+  ctx.beginPath();
+  ctx.arc(pointX, pointY, Math.max(8, plot.size * 0.025), 0, Math.PI * 2);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = classifierColors[prediction];
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(pointX, pointY, Math.max(3, plot.size * 0.01), 0, Math.PI * 2);
+  ctx.fillStyle = classifierColors[prediction];
+  ctx.fill();
+  ctx.restore();
+
+  drawPillLabel(
+    m.interactionMode === "add"
+      ? `AÑADIR PUNTO · Clase ${classifierLetters[m.manualClass]}`
+      : "MAPA DE DECISIÓN · Pulsa para probar una entrada",
+    plot.x + plot.size / 2,
+    plot.y + 16,
+    "rgba(15, 23, 42, 0.95)",
+    "#334155",
+    "#e2e8f0",
+    10,
+  );
+  ctx.save();
+  ctx.font = "10px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#94a3b8";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("x₁", plot.x + plot.size / 2, plot.y + plot.size + 7);
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText("x₂", plot.x - 8, plot.y + plot.size / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let tick = 0; tick <= 4; tick++) {
+    const value = (-1 + tick * 0.5).toFixed(1);
+    ctx.fillText(value, plot.x + (plot.size * tick) / 4, plot.y + plot.size + 20);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(value, plot.x - 8, plot.y + (plot.size * tick) / 4);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+  }
+  ctx.restore();
+
+  if (width > 850) {
+    const outputX = width - 75;
+    const firstLayerX = plot.x + plot.size + 72;
+    const lastLayerX = outputX - 55;
+    const layerGap =
+      (lastLayerX - firstLayerX) / Math.max(1, m.hiddenLayers + 1);
+    const centerY = height / 2;
+    const layerSizes = [
+      2,
+      ...Array(m.hiddenLayers).fill(m.neuronsPerLayer),
+      m.classCount,
+    ];
+    const activations = classifierForward([m.x1, m.x2]).activations;
+    const nodePositions = layerSizes.map((count, layerIndex) => {
+      const x =
+        layerIndex === 0
+          ? firstLayerX
+          : layerIndex === layerSizes.length - 1
+            ? outputX
+            : firstLayerX + layerGap * layerIndex;
+      const verticalStep = Math.min(34, (height - 96) / Math.max(1, count));
+      return Array.from({ length: count }, (_, nodeIndex) => ({
+        x,
+        y: centerY + (nodeIndex - (count - 1) / 2) * verticalStep,
+      }));
+    });
+
+    for (let layerIndex = 0; layerIndex < m.weights.length; layerIndex++) {
+      for (
+        let fromIndex = 0;
+        fromIndex < nodePositions[layerIndex].length;
+        fromIndex++
+      ) {
+        for (
+          let toIndex = 0;
+          toIndex < nodePositions[layerIndex + 1].length;
+          toIndex++
+        ) {
+          const from = nodePositions[layerIndex][fromIndex];
+          const to = nodePositions[layerIndex + 1][toIndex];
+          const weight = m.weights[layerIndex][toIndex][fromIndex];
+          ctx.beginPath();
+          ctx.moveTo(from.x + 9, from.y);
+          ctx.lineTo(to.x - 9, to.y);
+          ctx.strokeStyle =
+            weight >= 0 ? "rgba(52, 211, 153, 0.36)" : "rgba(251, 113, 133, 0.36)";
+          ctx.lineWidth = 0.6 + Math.min(1.5, Math.abs(weight) * 0.45);
+          ctx.stroke();
+        }
+      }
+    }
+
+    for (let layerIndex = 0; layerIndex < nodePositions.length; layerIndex++) {
+      const isOutput = layerIndex === nodePositions.length - 1;
+      const isInput = layerIndex === 0;
+      const positions = nodePositions[layerIndex];
+      const radius =
+        positions.length > 8
+          ? Math.max(6, Math.min(9, (height - 96) / positions.length / 2.5))
+          : 12;
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "9px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(
+        isInput
+          ? "ENTRADA"
+          : isOutput
+            ? "SALIDA · SOFTMAX"
+            : `OCULTA ${layerIndex}`,
+        positions[0].x,
+        Math.max(4, positions[0].y - (positions.length - 1) * 12 - radius - 17),
+      );
+
+      for (let nodeIndex = 0; nodeIndex < positions.length; nodeIndex++) {
+        const point = positions[nodeIndex];
+        const color = isInput
+          ? "#60a5fa"
+          : isOutput
+            ? classifierColors[nodeIndex]
+            : "#a78bfa";
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#0f172a";
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = `${radius < 9 ? 7 : 9}px 'JetBrains Mono', monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const nodeLabel = isInput
+          ? nodeIndex === 0
+            ? "x₁"
+            : "x₂"
+          : isOutput
+            ? classifierLetters[nodeIndex]
+            : `${nodeIndex + 1}`;
+        ctx.fillText(nodeLabel, point.x, point.y);
+
+        if (isOutput) {
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "9px Inter, sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText(
+            `${(activations[layerIndex][nodeIndex] * 100).toFixed(0)}%`,
+            point.x + radius + 4,
+            point.y,
+          );
+        }
+      }
+    }
+  }
+}
+
 // ==========================================
 // RENDERIZADO PRINCIPAL
 // ==========================================
@@ -2309,6 +3143,8 @@ function draw() {
     drawModule5();
   } else if (state.module === 6) {
     drawModule6();
+  } else if (state.module === 7) {
+    drawModule7();
   }
 
   ctx.restore();

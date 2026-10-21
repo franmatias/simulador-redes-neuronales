@@ -4,7 +4,7 @@ Simulador educativo e interactivo para explorar visualmente conceptos de redes n
 
 ## Contenido
 
-El laboratorio contiene seis módulos:
+El laboratorio contiene siete módulos:
 
 1. **La neurona**: explora cómo las entradas, los pesos y el sesgo determinan la salida de una neurona.
 2. **Desafío XOR**: visualiza un problema que no puede resolverse con una única frontera lineal.
@@ -12,12 +12,13 @@ El laboratorio contiene seis módulos:
 4. **Sandbox**: experimenta con datos y entrenamiento, y observa el mapa de decisión y las métricas.
 5. **Gradiente 3D**: explora la superficie de pérdida y el descenso del gradiente.
 6. **Visión CNN**: interactúa con una cuadrícula y observa operaciones de convolución.
+7. **Clasificador**: configura entre dos y cinco clases, entrena una salida Softmax y explora sus probabilidades y regiones de decisión.
 
 Cada módulo incluye un panel pedagógico con tres pestañas: intuición y analogía, rigor matemático y reto práctico.
 
 ## Cómo usar el simulador
 
-Selecciona uno de los seis módulos en la barra superior. Los controles correspondientes aparecerán en el panel izquierdo y la visualización interactiva en el lienzo principal. Los cambios en deslizadores, selectores y casillas se reflejan en la visualización al instante. En el panel inferior puedes alternar entre la explicación intuitiva, las fórmulas y una actividad práctica.
+Selecciona uno de los siete módulos en la barra superior. Los controles correspondientes aparecerán en el panel izquierdo y la visualización interactiva en el lienzo principal. Los cambios en deslizadores, selectores y casillas se reflejan en la visualización al instante. En el panel inferior puedes alternar entre la explicación intuitiva, las fórmulas y una actividad práctica.
 
 Usa el botón de la barra superior para alternar entre el modo oscuro y el modo claro; la preferencia se conserva en este navegador. En pantallas pequeñas, los controles y la visualización se apilan y la navegación de módulos puede desplazarse horizontalmente.
 
@@ -99,6 +100,18 @@ El módulo aplica una convolución a una cuadrícula de entrada de 10×10 usando
 - **Matriz de pesos del kernel:** edita individualmente sus nueve valores; los mapas se recalculan al cambiar un valor.
 - **ReLU:** activa o desactiva la transformación `max(0,z)` aplicada a la salida de la convolución.
 - **Escaneo automático:** activa el recorrido automático de la ventana 3×3 por el mapa. Los botones **Anterior** y **Siguiente** avanzan manualmente y desactivan el modo automático; haz clic en una celda del mapa 8×8 para inspeccionar su cálculo.
+
+### 7. Clasificador multiclase
+
+Este módulo clasifica dos características de entrada con una red neuronal configurable: una a tres capas ocultas ReLU y una neurona de salida por clase. Softmax convierte las puntuaciones de salida en probabilidades que suman 100 %, y la clase con mayor probabilidad es la predicción.
+
+- **Neuronas de salida / clases:** selecciona de dos a cinco categorías para cambiar el tamaño de la capa de salida.
+- **Dataset y ruido:** elige nubes, círculos concéntricos o espirales; ajusta la dispersión con el control de ruido. El dataset manual permite crear ejemplos etiquetados pulsando el mapa.
+- **Modo de interacción:** **Probar entrada** mueve el marcador de consulta; **Añadir punto** coloca un ejemplo de la clase seleccionada. Puedes borrar los ejemplos para crear un dataset propio desde cero.
+- **Arquitectura:** configura de una a tres capas ocultas y de cuatro a doce neuronas por capa. La visualización muestra las conexiones, la activación ReLU oculta y las salidas Softmax.
+- **Algoritmo de entrenamiento:** Batch GD actualiza usando el dataset completo; SGD actualiza tras cada ejemplo; Mini-batch actualiza en grupos de 16. Los tres usan retropropagación y entropía cruzada.
+- **Entrenar clasificador / Reiniciar pesos:** ajusta los parámetros sobre los ejemplos actuales o inicializa pesos nuevos conservando los datos.
+- **Mapa de decisión:** los colores indican la clase predicha en cada región; los círculos son ejemplos sintéticos, los cuadrados son puntos manuales y el marcador grande es la entrada de consulta.
 
 ## Requisitos
 
